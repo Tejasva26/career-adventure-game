@@ -1,16 +1,63 @@
 # React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🎮 How to Play the Career Adventure Game
 
-Currently, two official plugins are available:
+Open the live game link
+👉 https://career-adventure-game.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Choose your career path:
 
-## React Compiler
+💼 Job (traditional career)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+🚀 Job + Business (entrepreneurial journey)
 
-## Expanding the ESLint configuration
+Select a stream (Science, Commerce, Arts, or Vocational).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Pick a specific career within the chosen stream.
+
+The game will start on a canvas-based level.
+
+🕹 Controls
+
+Click anywhere on the screen or press SPACE / ↑ Arrow to flap.
+
+Avoid falling down or hitting the top boundary.
+
+🎯 Objective
+
+Reach all career milestones (nodes) in order.
+
+Each milestone increases your score.
+
+⚠️ Distractions
+
+Bombs represent real-life distractions (social media, laziness, addiction, etc.).
+
+Hitting a distraction:
+
+❌ Reduces your score
+
+✅ Does NOT end the game
+
+The game only ends if you hit the top or bottom boundary.
+
+🏆 Win & Lose Conditions
+
+You Win 🎉 if you complete all career milestones.
+
+Game Over ❌ if you hit a boundary.
+
+Final results show:
+
+Score
+
+Milestones reached
+
+Major distractions encountered
+
+💡 Learning Outcome
+
+The game teaches the importance of focus, discipline, and smart decision-making while exploring different career paths.
+
+
+
