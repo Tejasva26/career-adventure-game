@@ -16,7 +16,23 @@ const Class10CareerGame = () => {
   const [score, setScore] = useState(0);
   const [currentNode, setCurrentNode] = useState(0);
   const [lossReason, setLossReason] = useState('');
+  const [boundaryHits, setBoundaryHits] = useState(0);
+  const [hitDistractions, setHitDistractions] = useState([]);
+  const [warningMessage, setWarningMessage] = useState(null);
   const audioContextRef = useRef(null);
+
+  const distractionTypes = [
+    { name: 'Breakup', icon: '💔', penalty: 75, message: 'Emotional distress affecting focus' },
+    { name: 'Alcohol', icon: '🍺', penalty: 75, message: 'Poor decisions and health issues' },
+    { name: 'Smoking', icon: '🚬', penalty: 75, message: 'Health problems reducing productivity' },
+    { name: 'Drugs', icon: '💊', penalty: 100, message: 'Severe impact on career and life' },
+    { name: 'Laziness', icon: '😴', penalty: 50, message: 'Missed opportunities and delays' },
+    { name: 'Social Media', icon: '📱', penalty: 60, message: 'Time wasted, focus destroyed' },
+    { name: 'Peer Pressure', icon: '👥', penalty: 65, message: 'Wrong choices to fit in' },
+    { name: 'Procrastination', icon: '⏰', penalty: 70, message: 'Deadlines missed, stress increased' },
+    { name: 'Gaming Addiction', icon: '🎮', penalty: 80, message: 'Career goals forgotten' },
+    { name: 'Overspending', icon: '💸', penalty: 55, message: 'Financial stress and debt' }
+  ];
 
   const jobFields = {
     science: {
@@ -336,10 +352,12 @@ const Class10CareerGame = () => {
     for (let i = 0; i < nodes.length - 1; i++) {
       const numBombs = 1 + Math.floor(Math.random() * 2);
       for (let j = 0; j < numBombs; j++) {
+        const distraction = distractionTypes[Math.floor(Math.random() * distractionTypes.length)];
         bombs.push({
           x: nodes[i].baseX + 150 + (j * 80) + Math.random() * 50,
           y: 100 + Math.random() * (canvas.height - 200),
-          radius: 25, pulse: Math.random() * Math.PI * 2
+          radius: 25, pulse: Math.random() * Math.PI * 2,
+          distraction: distraction
         });
       }
     }
@@ -347,6 +365,7 @@ const Class10CareerGame = () => {
     let gameOver = false;
     let localScore = score;
     let localCurrentNode = currentNode;
+    let localHitDistractions = [...hitDistractions];
 
     const drawRopes = () => {
       nodes.forEach((node) => {
@@ -495,17 +514,38 @@ const Class10CareerGame = () => {
     };
 
     const checkBombCollision = () => {
-      for (let bomb of bombs) {
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        const bomb = bombs[i];
         const screenX = bomb.x - cameraX;
         const dx = bird.x - screenX;
         const dy = bird.y - bomb.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < bird.size + bomb.radius) {
-          setLossReason('distraction');
-          setGameState('lost');
-          gameOver = true;
-          trackGameLost(careerPath, selectedField, selectedCareer, localScore, 'distraction');
-          saveGameResult({ careerPath, selectedField, selectedCareer, score: localScore, result: 'lost', lossReason: 'distraction', nodesCompleted: localCurrentNode });
+          // Deduct score (can go negative, then reset to 0)
+          localScore = localScore - bomb.distraction.penalty;
+          
+          // If score goes negative, reset to 0 but keep playing
+          if (localScore < 0) {
+            localScore = 0;
+          }
+          
+          setScore(localScore);
+          
+          // Track this distraction
+          localHitDistractions.push(bomb.distraction.name);
+          setHitDistractions(localHitDistractions);
+          
+          // Show warning message
+          setWarningMessage({
+            text: `⚠️ ${bomb.distraction.icon} ${bomb.distraction.name}`,
+            subtext: bomb.distraction.message
+          });
+          setTimeout(() => setWarningMessage(null), 2000);
+          
+          // Remove the bomb
+          bombs.splice(i, 1);
+          
+          // Game never ends due to score - only boundary hits end the game
           return;
         }
       }
@@ -529,11 +569,18 @@ const Class10CareerGame = () => {
       bird.y += bird.velocity;
       cameraX += bird.speed;
       if (bird.y + bird.size > canvas.height || bird.y - bird.size < 0) {
+        // Immediate game over on boundary hit
         setLossReason('boundary');
         setGameState('lost');
         gameOver = true;
         trackGameLost(careerPath, selectedField, selectedCareer, localScore, 'boundary');
-        saveGameResult({ careerPath, selectedField, selectedCareer, score: localScore, result: 'lost', lossReason: 'boundary', nodesCompleted: localCurrentNode });
+        saveGameResult({ 
+          careerPath, selectedField, selectedCareer, 
+          score: localScore, result: 'lost', 
+          lossReason: 'boundary', 
+          nodesCompleted: localCurrentNode,
+          distractions: localHitDistractions
+        });
         return;
       }
       drawRopes();
@@ -549,6 +596,19 @@ const Class10CareerGame = () => {
       ctx.textAlign = 'left';
       ctx.fillText(`Score: ${localScore}`, 25, 45);
       ctx.fillText(`Node: ${localCurrentNode + 1}/${nodes.length}`, 25, 78);
+      
+      // Warning message
+      if (warningMessage) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+        ctx.fillRect(canvas.width / 2 - 250, 150, 500, 100);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(warningMessage.text, canvas.width / 2, 185);
+        ctx.font = '18px Arial';
+        ctx.fillText(warningMessage.subtext, canvas.width / 2, 220);
+      }
+      
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.font = 'bold 18px Arial';
       ctx.textAlign = 'center';
@@ -577,7 +637,7 @@ const Class10CareerGame = () => {
       canvas.removeEventListener('touchstart', handleFlap);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [gameState, selectedCareer, selectedField, score, currentNode, careerPath]);
+  }, [gameState, selectedCareer, selectedField, score, currentNode, careerPath, boundaryHits, hitDistractions, warningMessage]);
 
   const selectMainField = (field) => {
     setSelectedField(field);
@@ -589,6 +649,9 @@ const Class10CareerGame = () => {
     setGameState('playing');
     setScore(0);
     setCurrentNode(0);
+    setBoundaryHits(0);
+    setHitDistractions([]);
+    setWarningMessage(null);
     trackGameStarted(careerPath, selectedField, career);
   };
 
@@ -600,6 +663,9 @@ const Class10CareerGame = () => {
     setScore(0);
     setCurrentNode(0);
     setLossReason('');
+    setBoundaryHits(0);
+    setHitDistractions([]);
+    setWarningMessage(null);
   };
 
   if (gameState === 'pathChoice') {
@@ -638,7 +704,7 @@ const Class10CareerGame = () => {
           <h1 className="text-6xl font-bold text-white mb-3">Career Adventure Game</h1>
           <p className="text-2xl text-gray-300 mb-4">{careerPath === 'business' ? '🚀 Entrepreneurial Path' : '💼 Traditional Job Path'}</p>
           <p className="text-xl text-gray-400 mb-12">Choose Your Stream</p>
-          <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+          <div className="flex flex-col gap-8 max-w-3xl mx-auto">
             {Object.entries(currentFields).map(([key, field]) => (
               <button key={key} onClick={() => selectMainField(key)} className="bg-slate-800 hover:bg-slate-700 p-12 rounded-2xl border-4 transition-all transform hover:scale-105 hover:shadow-2xl" style={{ borderColor: field.color }}>
                 <div className="text-7xl mb-6">{field.icon}</div>
@@ -671,7 +737,7 @@ const Class10CareerGame = () => {
           </button>
           <h1 className="text-5xl font-bold text-white mb-3">{field.name}</h1>
           <p className="text-2xl text-gray-300 mb-12">Choose Your Career</p>
-          <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+          <div className="flex flex-col gap-6 max-w-3xl mx-auto">
             {Object.entries(field.subfields).map(([key, career]) => (
               <button key={key} onClick={() => startGame(key)} className="bg-slate-800 hover:bg-slate-700 p-8 rounded-2xl border-4 transition-all transform hover:scale-105" style={{ borderColor: career.color }}>
                 <h3 className="text-3xl font-bold text-white mb-4">{career.name}</h3>
@@ -742,13 +808,57 @@ const Class10CareerGame = () => {
   if (gameState === 'lost') {
     const currentFields = getCurrentFields();
     const career = currentFields[selectedField].subfields[selectedCareer];
+    
+    // Count distraction occurrences
+    const distractionCount = {};
+    hitDistractions.forEach(d => {
+      distractionCount[d] = (distractionCount[d] || 0) + 1;
+    });
+    const topDistractions = Object.entries(distractionCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    
     return (
-      <div className="w-full min-h-screen bg-gradient-to-br from-red-900 to-red-800 flex items-center justify-center p-8">
-        <div className="text-center">
+      <div className="w-full min-h-screen bg-gradient-to-br from-red-900 to-red-800 flex items-center justify-center p-8 overflow-y-auto">
+        <div className="text-center max-w-3xl my-8">
           <h1 className="text-6xl font-bold text-white mb-6">Career Setback!</h1>
-          <p className="text-3xl text-red-200 mb-4">{lossReason === 'boundary' ? 'Hit the boundaries!' : 'Hit a distraction!'}</p>
-          <p className="text-2xl text-red-300 mb-8">Reached milestone {currentNode} of {career.nodes.length}</p>
-          <p className="text-5xl font-bold text-yellow-400 mb-8">Score: {score}</p>
+          <p className="text-3xl text-red-200 mb-4">
+            Hit the boundary! Game Over!
+          </p>
+          <p className="text-2xl text-red-300 mb-4">Reached milestone {currentNode} of {career.nodes.length}</p>
+          <p className="text-5xl font-bold text-yellow-400 mb-8">Final Score: {score}</p>
+          
+          {topDistractions.length > 0 && (
+            <div className="bg-slate-800 rounded-2xl p-8 mb-8 border-2 border-red-400">
+              <h2 className="text-3xl font-bold text-white mb-6">⚠️ Distractions You Encountered</h2>
+              <div className="space-y-4 text-left">
+                {topDistractions.map(([name, count]) => {
+                  const distraction = distractionTypes.find(d => d.name === name);
+                  return (
+                    <div key={name} className="bg-slate-700 p-4 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-3xl">{distraction?.icon}</span>
+                        <div>
+                          <h3 className="text-xl font-bold text-white">
+                            {name} <span className="text-red-400">({count}x)</span>
+                          </h3>
+                          <p className="text-gray-300 text-sm">{distraction?.message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 p-4 bg-blue-900 rounded-lg">
+                <p className="text-white text-lg font-semibold mb-2">💡 Career Wisdom</p>
+                <p className="text-blue-200 text-base">
+                  Success requires discipline and focus. Every distraction costs you opportunities, 
+                  time, and progress. Stay committed to your goals and avoid shortcuts that lead nowhere.
+                </p>
+              </div>
+            </div>
+          )}
+          
           <button onClick={resetGame} className="bg-white hover:bg-gray-100 text-red-900 px-8 py-3 rounded-lg font-bold flex items-center gap-2 mx-auto transition transform hover:scale-105">
             <RotateCcw size={24} />Try Again
           </button>
